@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html ng-app="noticeApp">
+<head>
+    <title>Digital Notice Board - Admin Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #f2f6fc;
+            --surface: #ffffff;
+            --text: #1d2b43;
+            --muted: #53657f;
+            --primary: #0d62b3;
+            --primary-soft: #e6f0ff;
+            --danger: #b42318;
+            --ok: #0a7d38;
+            --warn: #a86600;
+            --border: #d7e0ee;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            color: var(--text);
+            background: radial-gradient(circle at top right, #d8e8ff, var(--bg) 45%);
+        }
+
+        .container {
+            width: min(1100px, 94vw);
+            margin: 24px auto;
+            display: grid;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 8px 24px rgba(16, 36, 64, 0.08);
+        }
+
+        h2, h3 { margin: 0 0 10px; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 10px;
+        }
+
+        input, select, textarea, button {
+            font: inherit;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 11px;
+            background: #fbfdff;
+        }
+
+        textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        button {
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            cursor: pointer;
+            background: var(--primary);
+            color: #fff;
+        }
+
+        button.secondary {
+            background: var(--primary-soft);
+            color: #1d4b85;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .error {
+            color: var(--danger);
+            margin-top: 10px;
+        }
+
+        .success {
+            color: var(--ok);
+            margin-top: 10px;
+        }
+
+        .notice-list {
+            margin-top: 12px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .notice {
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--ok);
+            border-radius: 10px;
+            padding: 12px;
+            background: #f9fbff;
+        }
+
+        .notice.high { border-left-color: var(--danger); }
+        .notice.medium { border-left-color: var(--warn); }
+        .notice.low { border-left-color: var(--ok); }
+
+        .notice h3 { margin: 0 0 8px; }
+
+        .meta {
+            color: var(--muted);
+            font-size: 0.92rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 6px;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <section class="card" ng-controller="loginController">
+        <div class="header-row">
+            <h2>Admin / Teacher Login</h2>
+            <div ng-if="currentUser.name">
+                Logged in as <strong>{{currentUser.name}}</strong> ({{currentUser.role}})
+                <button class="secondary" ng-click="logout()">Logout</button>
+            </div>
+        </div>
+
+        <div class="grid">
+            <input type="text" ng-model="loginData.identifier" placeholder="Username or Email">
+            <input type="password" ng-model="loginData.password" placeholder="Password">
+            <button ng-click="login()">Login</button>
+        </div>
+        <p style="margin-top:8px;color:#365a85;">Default admin login: username <strong>admin</strong>, password <strong>admin</strong></p>
+
+        <p class="error" ng-if="error">{{error}}</p>
+        <p class="success" ng-if="success">{{success}}</p>
+    </section>
+
+    <section class="card" ng-controller="noticeController">
+        <h2>{{isEditing ? 'Edit Notice' : 'Create Notice'}}</h2>
+
+        <div class="grid">
+            <input type="text" ng-model="notice.title" placeholder="Title">
+            <input type="text" ng-model="notice.category" placeholder="Category (Exam, Events, Hostel...)">
+            <select ng-model="notice.priority">
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+            </select>
+            <input type="date" ng-model="notice.expiryDate">
+        </div>
+
+        <textarea ng-model="notice.content" placeholder="Notice content"></textarea>
+
+        <div class="row">
+            <button ng-click="saveNotice()">{{isEditing ? 'Update Notice' : 'Post Notice'}}</button>
+            <button class="secondary" ng-if="isEditing" ng-click="resetForm()">Cancel Edit</button>
+        </div>
+
+        <p class="error" ng-if="error">{{error}}</p>
+        <p class="success" ng-if="success">{{success}}</p>
+
+        <hr>
+
+        <h2>Manage Notices</h2>
+        <div class="grid">
+            <input type="text" ng-model="filters.q" placeholder="Search notices">
+            <select ng-model="filters.priority">
+                <option value="All">All Priorities</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+            </select>
+            <select ng-model="filters.category">
+                <option value="All">All Categories</option>
+                <option ng-repeat="c in categories" value="{{c}}">{{c}}</option>
+            </select>
+            <select ng-model="filters.sortBy">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="priority">By Priority</option>
+                <option value="expiry">By Expiry Date</option>
+            </select>
+        </div>
+
+        <label style="display:block; margin-top:10px;">
+            <input type="checkbox" ng-model="filters.activeOnly" style="width:auto;"> Show only active notices
+        </label>
+
+        <div class="row" style="margin-top:10px;">
+            <button ng-click="applyFilters()">Apply Filters</button>
+            <button class="secondary" ng-click="clearFilters()">Clear Filters</button>
+        </div>
+
+        <div class="notice-list">
+            <article ng-repeat="n in notices"
+                     class="notice"
+                     ng-class="{
+                       'high': n.priority === 'High',
+                       'medium': n.priority === 'Medium',
+                       'low': n.priority === 'Low'
+                     }">
+                <h3>{{n.title}}</h3>
+                <p>{{n.content}}</p>
+                <div class="meta">
+                    <span><strong>Priority:</strong> {{n.priority}}</span>
+                    <span><strong>Category:</strong> {{n.category || 'General'}}</span>
+                    <span><strong>Posted By:</strong> {{n.createdBy.name || 'Unknown'}}</span>
+                    <span><strong>Expires:</strong> {{n.expiryDate ? (n.expiryDate | date:'mediumDate') : 'N/A'}}</span>
+                </div>
+                <div class="row" style="margin-top:10px;">
+                    <button class="secondary" ng-click="startEdit(n)">Edit</button>
+                    <button ng-click="deleteNotice(n._id)">Delete</button>
+                </div>
+            </article>
+        </div>
+    </section>
+</div>
+
+<script src="app.js"></script>
+<script src="controllers/loginController.js"></script>
+<script src="controllers/noticeController.js"></script>
+</body>
+</html>
